@@ -1,0 +1,47 @@
+//#3DP_FLOAT3_VECTOR color
+//#3DP_FLOAT mSpecPow
+//#3DP_TEXTURE texture1
+//#3DP_TEXTURE normalmap
+//#3DP_INT useNormalmap
+
+precision highp float;
+
+varying vec3 vNormal;
+varying vec3 vVertex;
+varying vec3 vTengent;
+varying vec2 vTextureCoordinate;
+varying mat4 vTransformMatrix;
+
+uniform vec3 color;
+uniform sampler2D texture1;
+uniform sampler2D normalmap;
+uniform float mSpecPow;
+uniform bool useNormalmap;
+
+float mDiff;
+float mSpec;
+vec3 eyePos = vec3(0.0, 5.0, 5.0);
+vec3 lightPos = vec3(5.0, 10.0, 5.0);
+
+void main(void) {
+	vec3 normal;
+	if(useNormalmap){
+		vec3 normalT = (vec3(texture2D(normalmap, vTextureCoordinate))*2.0)-1.0;
+		vec3 biTengent = normalize(cross(vNormal, vTengent));
+		normal.x = (normalT.x * vTengent.x) + (normalT.y * -biTengent.x) + (normalT.z * vNormal.x);
+		normal.y = (normalT.x * vTengent.y) + (normalT.y * -biTengent.y) + (normalT.z * vNormal.y);
+		normal.z = (normalT.x * vTengent.z) + (normalT.y * -biTengent.z) + (normalT.z * vNormal.z);
+		normal = normalize(vec3(vTransformMatrix * vec4(normal, 0.0)));
+	}else{
+		normal = normalize(vec3(vTransformMatrix * vec4(vNormal, 0.0)));
+	}
+	mDiff = max(dot(normalize(normal), normalize(lightPos - vVertex)), 0.0);
+	mSpec = pow(max(dot(normalize(eyePos - vVertex) , reflect(normalize(vVertex - lightPos), normalize(normal))), 0.0),mSpecPow);
+	vec3 mColor = vec3(texture2D(texture1, vTextureCoordinate)) + color;
+	gl_FragColor = vec4(
+		mDiff * mColor * vec3(1.0)+
+		mSpec * vec3(1.0) +
+		0.0 * vec3(1.0),
+		1.0
+	);
+}

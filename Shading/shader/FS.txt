@@ -1,0 +1,190 @@
+//#3DP_FLOAT3_VECTOR color
+//#3DP_FLOAT mSpecPow
+//#3DP_FLOAT ME
+//#3DP_FLOAT RO
+//#3DP_TEXTURE topT bottomT leftT rightT frontT backT
+//#3DP_TEXTURE topT_b bottomT_b leftT_b rightT_b frontT_b backT_b
+//#3DP_INT useComplex
+
+precision highp float;
+
+varying vec3 vNormal;
+varying vec3 vVertex;
+varying vec3 vTengent;
+varying vec2 vTextureCoordinate;
+varying mat4 vTransformMatrix;
+
+uniform float ME;
+uniform float RO;
+uniform vec3 color;
+uniform float mSpecPow;
+uniform bool useComplex;
+
+float mDiff;
+float mSpec;
+vec3 eyePos = vec3(0.0, 5.0, 5.0);
+vec3 lightPos = vec3(5.0, 8.0, 1.5);
+
+vec3 L = vec3(1.0, 1.0, 1.0);
+////
+uniform sampler2D topT;
+uniform sampler2D bottomT;
+uniform sampler2D leftT;
+uniform sampler2D rightT;
+uniform sampler2D frontT;
+uniform sampler2D backT;
+uniform sampler2D topT_b;
+uniform sampler2D bottomT_b;
+uniform sampler2D leftT_b;
+uniform sampler2D rightT_b;
+uniform sampler2D frontT_b;
+uniform sampler2D backT_b;
+
+struct plane{
+	vec3 v0;
+	vec3 v1;
+	vec3 v2;
+	vec3 v3;
+	vec3 normal;
+};
+struct hit{
+	bool isHit;
+	vec3 hitPosition;
+};
+
+hit isHitPlaneQuad(plane p, float scale, vec3 rayStart, vec3 rayVector){
+	vec3 p0 = p.v0 * scale;
+	vec3 p1 = p.v1 * scale;
+	vec3 p2 = p.v2 * scale;
+	//vec3 p3 = p.v3 * scale;
+	vec3 n = p.normal;
+	vec3 s = rayStart;
+	vec3 r = rayVector;
+	
+	if(dot(rayVector, n)==1.0){
+		return hit(false, vec3(0.0));
+	}
+	float temp = n.x*r.x+n.y*r.y+n.z*r.z;
+	float T;
+	if(temp == 0.0){
+		T = 0.0;
+	}else{
+		T = (n.x*p1.x+n.y*p1.y+n.z*p1.z-n.x*s.x-n.y*s.y-n.z*s.z)/ temp;
+	}
+	
+	if(T<=0.0){
+		return hit(false, vec3(0.0));
+	}
+	
+	vec3 I = vec3(s.x+T*r.x, s.y+T*r.y, s.z+T*r.z);
+	
+	if(dot(normalize(I-p1), normalize(p0-p1)) <0.0 || dot(normalize(I-p1), normalize(p2-p1)) < 0.0){
+		return hit(false, vec3(0.0));
+	}
+	
+	float a, b;
+	a = (pow(length(p2-p1), 2.0)+pow(length(I-p1), 2.0)-pow(length(I-p2), 2.0)) / (2.0 * length(p2-p1));
+	b = pow(pow(length(I-p1), 2.0) - a*a, 0.5);
+	a = a / (scale*2.0);
+	b = b / (scale*2.0);
+	
+
+	
+	if(a<=1.0 && b<=1.0 && (a+b)<=2.0){
+		return hit(true, I);
+	}
+
+	return hit(false, vec3(0.0));
+}
+vec3 normalize2TC(vec3 pos, float scale){
+	pos = pos + scale;
+	pos = pos / scale / 2.0;
+	return vec3(pos);
+}
+
+plane topP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0, 1.0,-1.0), vec3( 1.0, 1.0,-1.0), vec3( 1.0, 1.0, 1.0), vec3( 0.0,-1.0, 0.0));
+plane bottomP =	plane(vec3(-1.0,-1.0,-1.0), vec3(-1.0,-1.0, 1.0), vec3( 1.0,-1.0, 1.0), vec3( 1.0,-1.0,-1.0), vec3( 0.0, 1.0, 0.0));
+plane rightP =	plane(vec3( 1.0, 1.0,-1.0), vec3( 1.0,-1.0,-1.0), vec3( 1.0,-1.0, 1.0), vec3( 1.0, 1.0, 1.0), vec3(-1.0, 0.0, 0.0));
+plane leftP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0,-1.0, 1.0), vec3(-1.0,-1.0,-1.0), vec3(-1.0, 1.0,-1.0), vec3( 1.0, 0.0, 0.0));
+plane frontP =	plane(vec3( 1.0, 1.0, 1.0), vec3( 1.0,-1.0, 1.0), vec3(-1.0,-1.0, 1.0), vec3(-1.0, 1.0, 1.0), vec3( 0.0, 0.0,-1.0));
+plane backP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0,-1.0,-1.0), vec3( 1.0,-1.0,-1.0), vec3( 1.0, 1.0,-1.0), vec3( 0.0, 0.0, 1.0));
+////
+vec3 EnvironmentMap(float RO, vec3 normal) {
+	vec3 ray = normalize(reflect(normalize(vVertex - eyePos), normal));
+	float scale = 10000.0;
+	hit topH = isHitPlaneQuad(topP, scale, vVertex, ray);
+	hit bottomH = isHitPlaneQuad(bottomP, scale, vVertex, ray);
+	hit rightH = isHitPlaneQuad(rightP, scale, vVertex, ray);
+	hit leftH = isHitPlaneQuad(leftP, scale, vVertex, ray);
+	hit frontH = isHitPlaneQuad(frontP, scale, vVertex, ray);
+	hit backH = isHitPlaneQuad(backP, scale, vVertex, ray);
+	
+	if(topH.isHit){
+		vec3 pos = normalize2TC(topH.hitPosition, scale);
+		vec2 uv = vec2(pos.x, pos.z);
+		return mix(vec3(texture2D(topT, uv)), vec3(texture2D(topT_b, uv)), RO);
+	}else if(bottomH.isHit){
+		vec3 pos = normalize2TC(bottomH.hitPosition, scale);
+		vec2 uv = vec2(pos.x, (1.0-pos.z));
+		return mix(vec3(texture2D(bottomT, uv)), vec3(texture2D(bottomT_b, uv)), RO);
+	}else if(rightH.isHit){
+		vec3 pos = normalize2TC(rightH.hitPosition, scale);
+		vec2 uv = vec2(pos.z, pos.y);
+		return mix(vec3(texture2D(rightT, uv)), vec3(texture2D(rightT_b, uv)), RO);
+	}else if(leftH.isHit){
+		vec3 pos = normalize2TC(leftH.hitPosition, scale);
+		vec2 uv = vec2((1.0-pos.z), pos.y);
+		return mix(vec3(texture2D(leftT, uv)), vec3(texture2D(leftT_b, uv)), RO);
+	}else if(frontH.isHit){
+		vec3 pos = normalize2TC(frontH.hitPosition, scale);
+		vec2 uv = vec2((1.0-pos.x), pos.y);
+		return mix(vec3(texture2D(frontT, uv)), vec3(texture2D(frontT_b, uv)), RO);
+	}else if(backH.isHit){
+		vec3 pos = normalize2TC(backH.hitPosition, scale);
+		vec2 uv = vec2(pos.x, pos.y);
+		return mix(vec3(texture2D(backT, uv)), vec3(texture2D(backT_b, uv)), RO);
+	}else{
+		return vec3(0.0, 0.0, 0.0);
+	}
+}
+
+float frasnel_I(vec3 N, vec3 V) {
+	//return ((pow(1.0-dot(N, V), 5.0))+0.02)/1.02;
+	if(dot(N, V)<=0.0){
+		return 0.0;
+	}
+	return max(0.04, pow(1.0-dot(N, V), 5.0));
+}
+float spacular_I(vec3 V, vec3 R) {
+	return min(1.0, max(0.0, dot(V, R)));
+}
+vec3 diffuse_C(vec3 N, vec3 L) {
+	return color*min(1.0, max(0.0, dot(N, L)));
+}
+
+void main(void) {
+	
+	vec3 normal;
+	normal = normalize(vec3(vTransformMatrix * vec4(vNormal, 0.0)));
+	float reflection_I = ((1.0-ME)*0.2 + ME);
+	float diffuse_I = (1.0-ME)*0.8;
+	vec3 spacular_C = (1.0-ME)*vec3(1.0, 1.0, 1.0) + ME*color;
+	float spacular_P = (1.0-RO)*255.0+1.0;
+	vec3 ENV_C = EnvironmentMap(RO, normal);
+	//vec3 frasnel_C = ENV_C * ME * color + (1.0-ME) * vec3(1.0, 1.0, 1.0) *0.2;
+	vec3 reflection_C = ((1.0-ME) * ENV_C) + (ME * ENV_C * color);
+	vec3 frasnel_C = ENV_C; 
+	
+	vec3 diffuse = diffuse_I * diffuse_C(normal, normalize(lightPos - vVertex)) * L+0.05;
+	
+	if(!useComplex)
+	{
+		gl_FragColor = vec4((diffuse/diffuse_I)+0.05, 1.0);
+		return;
+	}
+	vec3 spacular = min(1.0, max(0.0,pow(spacular_I(normalize(eyePos - vVertex), normalize(reflect((vVertex - lightPos), normal))), spacular_P))) * (1.0-RO*0.8) * spacular_C * L;
+	vec3 reflection = reflection_I * reflection_C * L;
+	vec3 frasnel = frasnel_I(normal, normalize(eyePos - vVertex)) * frasnel_C * L;
+	
+	gl_FragColor = vec4(diffuse + spacular + reflection + frasnel, 1.0);
+}

@@ -1,0 +1,265 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8;">
+<script type="text/javascript" src="../js/gl-matrix.js"></script>
+<script type="text/javascript" src="../js/_3DP_.js"></script>
+<script type="text/javascript">
+var exampleCanvas;
+var mWizard;
+var mFrameControlle;
+var mModelManager;
+var mShaderManager;
+var mSceneManager;
+var mCameraManager;
+var mRenderController;
+var mFileLoader;
+
+function init(){
+	exampleCanvas = document.getElementById("exampleCanvas");
+	mWizard = new wizard(exampleCanvas);
+	mFrameController = mWizard.getFrameController();
+	mModelManager = mWizard.getModelManager();
+	mShaderManager = mWizard.getShaderManager();
+	mSceneManager = mWizard.getSceneManager();
+	mCameraManager = mWizard.getCameraManager();
+	mTextureManager = mWizard.getTextureManager();
+	mRenderController = mWizard.getRenderController();
+	mFileLoader = mWizard.getFileLoader();
+	
+	var c0 = new _3DP_Camera();
+	c0.position = [0,5,5];
+	mCameraManager.add(c0);
+	mRenderController.setCameraList(mCameraManager.getCameraList());
+	
+	mFrameController.calculateFPS(true);
+	mFrameController.setFPS(30);
+	var FPS = document.getElementById("FPS");
+	var writeFPS = function(){
+		FPS.textContent = mFrameController.FPS();
+		setTimeout(writeFPS, 1000);
+	};
+	writeFPS();
+	
+	downloadResource();
+}
+
+var modelSphere, modelTeapot, normalMappingShader, finCheck = 15;
+var topTexture, bottomTexture, leftTexture, rightTexture, frontTexture, backTexture;
+var topTexture_b, bottomTexture_b, leftTexture_b, rightTexture_b, frontTexture_b, backTexture_b;
+var downloadResource = function(){
+	var waitFun = function(){
+		if(finCheck==0){
+			setObject();
+			setRenderScene();
+			mFrameController.setFrameFunction(update);
+			mFrameController.start();
+			return;
+		}
+		setTimeout(waitFun, 1000);
+	};
+	
+	mFileLoader.loadObjModel('../model/sphere.obj',
+		function(_model){
+			var tengentList = [];
+			var MRD =_model.getModelRawData();
+			var vertexList = MRD.VERTEX;
+			var TCList = MRD.TEXTURE_COORDINATE;
+			var VI = MRD.INDEX;
+			for(var i =0;i<VI.length;i++){
+				var v0 = VI[i][0];
+				var v1 = VI[i][1];
+				var v2 = VI[i][2];
+				tengentList[v0] = _3DP_Helper.calculateTengent(vertexList[v0], vertexList[v1], vertexList[v2], TCList[v0], TCList[v1], TCList[v2], MRD.NORMAL[v0]);
+				tengentList[v1] = tengentList[v0];//_3DP_Helper.calculateTengent(vertexList[v1], vertexList[v2], vertexList[v0], TCList[v1], TCList[v2], TCList[v0], MRD.NORMAL[v0]);
+				tengentList[v2] = tengentList[v0];//_3DP_Helper.calculateTengent(vertexList[v2], vertexList[v0], vertexList[v1], TCList[v2], TCList[v0], TCList[v1], MRD.NORMAL[v0]);
+				
+					var testt = function(a){
+						for(var i =0;i<a.length;i = i+2){
+							if(a[i] == 0){
+								console.log(a);
+							}
+						}
+					};
+					testt(tengentList[v0]);
+					testt(tengentList[v1]);
+					testt(tengentList[v2]);
+			}
+			for(var i =0;i<tengentList.length;i++){
+				if(tengentList[i].length != 3){
+				console.log(tengentList[i]);}
+			}
+			_model.setExtraData('aTengent', tengentList);
+			window.modelSphere = mModelManager.add(_model);
+			window.finCheck--;
+		}
+	);
+	mFileLoader.loadObjModel('../model/teapot.obj',
+		function(_model){
+			var tengentList = [];
+			var MRD =_model.getModelRawData();
+			var vertexList = MRD.VERTEX;
+			var TCList = MRD.TEXTURE_COORDINATE;
+			var VI = MRD.INDEX;
+			for(var i =0;i<VI.length;i++){
+				var v0 = VI[i][0];
+				var v1 = VI[i][1];
+				var v2 = VI[i][2];
+				tengentList[v0] = _3DP_Helper.calculateTengent(vertexList[v0], vertexList[v1], vertexList[v2], TCList[v0], TCList[v1], TCList[v2], MRD.NORMAL[v0]);
+				tengentList[v1] = tengentList[v0];//_3DP_Helper.calculateTengent(vertexList[v1], vertexList[v2], vertexList[v0], TCList[v1], TCList[v2], TCList[v0], MRD.NORMAL[v0]);
+				tengentList[v2] = tengentList[v0];//_3DP_Helper.calculateTengent(vertexList[v2], vertexList[v0], vertexList[v1], TCList[v2], TCList[v0], TCList[v1], MRD.NORMAL[v0]);
+			}
+			for(var i =0;i<tengentList.length;i++){
+				if(tengentList[i].length != 3){
+				console.log(tengentList[i]);}
+			}
+			_model.setExtraData('aTengent', tengentList);
+			window.modelTeapot = mModelManager.add(_model);
+			window.finCheck--;
+		}
+	);
+	mFileLoader.loadTexture('./texture/top.jpg', function(_texture){window.topTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/bottom.jpg', function(_texture){window.bottomTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/left.jpg', function(_texture){window.leftTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/right.jpg', function(_texture){window.rightTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/front.jpg', function(_texture){window.frontTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/back.jpg', function(_texture){window.backTexture = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/top_b.jpg', function(_texture){window.topTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/bottom_b.jpg', function(_texture){window.bottomTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/left_b.jpg', function(_texture){window.leftTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/right_b.jpg', function(_texture){window.rightTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/front_b.jpg', function(_texture){window.frontTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadTexture('./texture/back_b.jpg', function(_texture){window.backTexture_b = mTextureManager.add(_texture);window.finCheck--;});
+	mFileLoader.loadShader('./shader/VS.txt', './shader/FS.txt', function(_shader){window.normalMappingShader = mShaderManager.add(_shader);window.finCheck--;});
+	waitFun();
+};
+
+var renderObject = new _3DP_RenderObject();
+var setObject = function(){
+	renderObject.setModel(modelSphere);
+	renderObject.setShader(normalMappingShader);
+	colorFun();
+	specularFun();
+	changeModel(0);
+	useComplex();
+	renderObject.setShaderInput('aTengent',modelSphere.getExtraData('aTengent'));
+	renderObject.setShaderInput('topT',topTexture);
+	renderObject.setShaderInput('bottomT',bottomTexture);
+	renderObject.setShaderInput('leftT',leftTexture);
+	renderObject.setShaderInput('rightT',rightTexture);
+	renderObject.setShaderInput('frontT',frontTexture);
+	renderObject.setShaderInput('backT',backTexture);
+	renderObject.setShaderInput('topT_b',topTexture_b);
+	renderObject.setShaderInput('bottomT_b',bottomTexture_b);
+	renderObject.setShaderInput('leftT_b',leftTexture_b);
+	renderObject.setShaderInput('rightT_b',rightTexture_b);
+	renderObject.setShaderInput('frontT_b',frontTexture_b);
+	renderObject.setShaderInput('backT_b',backTexture_b);
+};
+
+var setRenderScene = function(){
+	mSceneManager.clear();
+	mSceneManager.add(renderObject);
+	mRenderController.setRenderObjectList(mSceneManager.getRenderObjectList());
+};
+
+var preTime = _3DP_Helper.getTime();
+var rotateY = 0, transformM = _3DP_Helper.createTransformMatrix();
+var update = function(){
+	_3DP_Helper.identity(transformM);
+	
+	var nowTime = _3DP_Helper.getTime();
+ 	rotateY = (rotateY + (20 * (nowTime - preTime) / 1000.0))%360.0;
+ 	transformM = _3DP_Helper.rotateY(transformM, _3DP_Helper.degToRad(rotateY));
+	
+	var scale = document.getElementById("scale").value * 1.0;
+	transformM = _3DP_Helper.scale(transformM, [scale, scale, scale]);
+	
+	renderObject.setTransformMatrix(transformM);
+	
+	preTime = nowTime;
+};
+
+var colorFun = function(){
+	renderObject.setShaderInput('ME',parseFloat(document.getElementById("metallic").value));
+	renderObject.setShaderInput('RO',parseFloat(document.getElementById("roughness").value));
+	var color_R = parseFloat(document.getElementById("color_R").value);
+	var color_G = parseFloat(document.getElementById("color_G").value);
+	var color_B = parseFloat(document.getElementById("color_B").value);
+	renderObject.setShaderInput('color',[color_R, color_G, color_B]);
+};
+var specularFun = function(){
+	renderObject.setShaderInput('mSpecPow',32.0);
+	return;
+	var specular = Math.pow(2.0, parseFloat(document.getElementById("Specular").value));
+	renderObject.setShaderInput('mSpecPow',specular);
+};
+var changeModel = function(m){
+	if(m){
+		renderObject.setModel(modelTeapot);
+	}else{
+		renderObject.setModel(modelSphere);
+	}
+};
+var useComplex = function(){
+	renderObject.setShaderInput('useComplex',document.getElementById("Complex").checked);
+};
+</script>
+</head>
+<body onload="init();" style="margin-left:30px;margin-top:30px;">
+<span style="color:#FFFFFF;text-shadow: 0px -1px 0px black, 1px 0px 0px black, 0px 1px 0px black, -1px 0px 0px black;">
+	FPS:<span id="FPS"></span>
+</span>
+<br>
+<canvas id="exampleCanvas" width="512" height="384" style="margin:0px;padding:0px;border-style:dashed;border-width:1px;border-color:#FFFFFF;background-color:#000000;"></canvas>
+<br>
+<pre>
+Title：Shading
+</pre>
+<table>
+<tr>
+	<td>On|Off:</td>
+	<td><input id="Complex" type="checkbox" onClick = "useComplex();" checked></td>
+</tr>
+<tr>
+	<td>Model:</td>
+	<td>
+		<span onclick="changeModel(1);" style="text-decoration:underline;cursor:pointer;">Teapot</span>&nbsp;
+		<span onclick="changeModel(0);" style="text-decoration:underline;cursor:pointer;">Sphere</span>&nbsp;
+	</td>
+</tr>
+<tr>
+	<td>Scale:</td>
+	<td><input id="scale" type="range" min="1" max="3" step="0.01" value="2" style="width:450px;"></td>
+</tr>
+<tr>
+	<td>Metallic:</td>
+	<td><input id="metallic" type="range" min="0" max="1" step="0.01" value="0" style="width:450px;" onchange = "colorFun();"></td>
+</tr>
+<tr>
+	<td>Roughness:</td>
+	<td><input id="roughness" type="range" min="0" max="1" step="0.01" value="0" style="width:450px;" onchange = "colorFun();"></td>
+</tr>
+<tr>
+	<td>
+		Color R:<br>
+		Color G:<br>
+		Color B:
+	</td>
+	<td>
+		<input id="color_R" type="range" min="0" max="1" step="0.01" value="1.0" style="width:450px;" onchange = "colorFun();"><br>
+		<input id="color_G" type="range" min="0" max="1" step="0.01" value="0.0" style="width:450px;" onchange = "colorFun();"><br>
+		<input id="color_B" type="range" min="0" max="1" step="0.01" value="0.0" style="width:450px;" onchange = "colorFun();">
+	</td>
+</tr>
+<!--
+<tr>
+	<td>Specular:</td>
+	<td><input id="Specular" type="range" min="0" max="10" step="0.1" value="5" style="width:450px;" onchange = "specularFun();"></td>
+</tr>
+-->
+</table>
+<br>
+Texture: <a href="http://www.humus.name/">http://www.humus.name/</a><br>
+<img src="./ref/SanFrancisco2.jpg"><br>
+</body>
+</html>

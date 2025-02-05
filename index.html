@@ -1,0 +1,76 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8;">
+<style>
+.hightLight{
+	color:#FF0000;
+}
+</style>
+</head>
+<body style="margin-left:30px;margin-top:30px;">
+<pre>
+<span class="hightLight"><b>※This project is no longer under development and maintenance.</b></span>
+
+●Introduction:
+Here is the HTML5 WebGL 3D display system I developed between 2013 and 2014, with some examples running on it.
+
+<hr>
+●Example:
+<table border="1" style="text-align:center;">
+<tr>
+	<td>Name</td><td>Before</td><td>After</td><td>Link</td><td>Note</td>
+</tr>
+
+<tr>
+	<td>Shading</td>
+	<td><a href="./Shading/before.png"><img src="./Shading/before.png" height="128" width="128"></a></td>
+	<td><a href="./Shading/after.png"><img src="./Shading/after.png" height="128" width="128"></a></td>
+	<td><a href = "./Shading/index.html">Open</a></td>
+	<td rowspan = "3" style="text-align: left"><p class="hightLight">※Please open with Google Chrome<br>※and enable hardware acceleration.</p></td>
+</tr>
+
+<tr>
+	<td>Cube Mapping</td>
+	<td><a href="./CubeMapping/before.jpg"><img src="./CubeMapping/before.jpg" height="128" width="128"></a></td>
+	<td><a href="./CubeMapping/after.jpg"><img src="./CubeMapping/after.jpg" height="128" width="128"></a></td>
+	<td><a href = "./CubeMapping/index.html">Open</a></td>
+</tr>
+
+<tr>
+	<td>Normal Mapping</td>
+	<td><a href="./NormalMapping/before.jpg"><img src="./NormalMapping/before.jpg" height="128" width="128"></a></td>
+	<td><a href="./NormalMapping/after.jpg"><img src="./NormalMapping/after.jpg" height="128" width="128"></a></td>
+	<td><a href = "./NormalMapping/index.html">Open</a></td>
+</tr>
+</table>
+
+<hr>
+● Tools：
+1. AJAX
+2. JavaScript
+3. WebGL
+
+<hr>
+● Main Components：
+1. Camera Component<!-- - 系統依此元件決定要處理的Camera-->
+2. File Component<!-- - 透過此元件下載外部的檔案，並處理成本系統的格式-->
+3. Frame Component<!-- - 控制並處理frame，如fps-->
+4. Model Component<!-- - 建立model buffer-->
+5. Render Component<!-- - 負責render程序-->
+6. Shader Component<!-- - 編譯shader檔及處理shader所需要的外部變數參數-->
+7. Texture Component<!-- - 建立texture buffer-->
+<!-- <hr>
+●主要運作流程：
+　　以下為主要運作的流程
+1. 透過File元件將外部檔案載入，如model(.obj)、shader(.txt)、texture(.jpg)
+2. 透過Model元件、Shader元件、Texture元件，處理第一步驟的檔案
+3. 將第二步驟的物件合併為欲被render的物件(render object)
+4. 建立camera
+5. 啟動frame，開始render第三步驟的render object
+6. 完成-->
+<hr>
+● Library:
+1. glMatrix - http://glmatrix.net/
+</pre>
+</body>
+</html>

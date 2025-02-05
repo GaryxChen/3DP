@@ -1,0 +1,153 @@
+//#3DP_FLOAT3_VECTOR color
+//#3DP_FLOAT mSpecPow
+//#3DP_TEXTURE topT bottomT leftT rightT frontT backT
+//#3DP_INT useCubeMap
+
+precision highp float;
+
+varying vec3 vNormal;
+varying vec3 vVertex;
+varying vec2 vTextureCoordinate;
+varying mat4 vTransformMatrix;
+
+uniform vec3 color;
+uniform sampler2D topT;
+uniform sampler2D bottomT;
+uniform sampler2D leftT;
+uniform sampler2D rightT;
+uniform sampler2D frontT;
+uniform sampler2D backT;
+uniform float mSpecPow;
+uniform bool useCubeMap;
+
+float mDiff;
+float mSpec;
+vec3 eyePos = vec3(0.0, 5.0, 5.0);
+vec3 lightPos = vec3(5.0, 10.0, 5.0);
+
+struct plane{
+	vec3 v0;
+	vec3 v1;
+	vec3 v2;
+	vec3 v3;
+	vec3 normal;
+};
+struct hit{
+	bool isHit;
+	vec3 hitPosition;
+};
+
+hit isHitPlaneQuad(plane p, float scale, vec3 rayStart, vec3 rayVector){
+	vec3 p0 = p.v0 * scale;
+	vec3 p1 = p.v1 * scale;
+	vec3 p2 = p.v2 * scale;
+	//vec3 p3 = p.v3 * scale;
+	vec3 n = p.normal;
+	vec3 s = rayStart;
+	vec3 r = rayVector;
+	
+	if(dot(rayVector, n)==1.0){
+		return hit(false, vec3(0.0));
+	}
+	float temp = n.x*r.x+n.y*r.y+n.z*r.z;
+	float T;
+	if(temp == 0.0){
+		T = 0.0;
+	}else{
+		T = (n.x*p1.x+n.y*p1.y+n.z*p1.z-n.x*s.x-n.y*s.y-n.z*s.z)/ temp;
+	}
+	
+	if(T<=0.0){
+		return hit(false, vec3(0.0));
+	}
+	
+	vec3 I = vec3(s.x+T*r.x, s.y+T*r.y, s.z+T*r.z);
+	
+	if(dot(normalize(I-p1), normalize(p0-p1)) <0.0 || dot(normalize(I-p1), normalize(p2-p1)) < 0.0){
+		return hit(false, vec3(0.0));
+	}
+	
+	float a, b;
+	a = (pow(length(p2-p1), 2.0)+pow(length(I-p1), 2.0)-pow(length(I-p2), 2.0)) / (2.0 * length(p2-p1));
+	b = pow(pow(length(I-p1), 2.0) - a*a, 0.5);
+	a = a / (scale*2.0);
+	b = b / (scale*2.0);
+	
+
+	
+	if(a<=1.0 && b<=1.0 && (a+b)<=2.0){
+		return hit(true, I);
+	}
+
+	return hit(false, vec3(0.0));
+}
+vec3 normalize2TC(vec3 pos, float scale){
+	pos = pos + scale;
+	pos = pos / scale / 2.0;
+	return vec3(pos);
+}
+
+plane topP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0, 1.0,-1.0), vec3( 1.0, 1.0,-1.0), vec3( 1.0, 1.0, 1.0), vec3( 0.0,-1.0, 0.0));
+plane bottomP =	plane(vec3(-1.0,-1.0,-1.0), vec3(-1.0,-1.0, 1.0), vec3( 1.0,-1.0, 1.0), vec3( 1.0,-1.0,-1.0), vec3( 0.0, 1.0, 0.0));
+plane rightP =	plane(vec3( 1.0, 1.0,-1.0), vec3( 1.0,-1.0,-1.0), vec3( 1.0,-1.0, 1.0), vec3( 1.0, 1.0, 1.0), vec3(-1.0, 0.0, 0.0));
+plane leftP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0,-1.0, 1.0), vec3(-1.0,-1.0,-1.0), vec3(-1.0, 1.0,-1.0), vec3( 1.0, 0.0, 0.0));
+plane frontP =	plane(vec3( 1.0, 1.0, 1.0), vec3( 1.0,-1.0, 1.0), vec3(-1.0,-1.0, 1.0), vec3(-1.0, 1.0, 1.0), vec3( 0.0, 0.0,-1.0));
+plane backP =	plane(vec3(-1.0, 1.0, 1.0), vec3(-1.0,-1.0,-1.0), vec3( 1.0,-1.0,-1.0), vec3( 1.0, 1.0,-1.0), vec3( 0.0, 0.0, 1.0));
+
+void main(void) {
+	vec3 normal;
+	vec3 mColor;
+	normal = normalize(vec3(vTransformMatrix * vec4(vNormal, 0.0)));
+	
+	mDiff = max(dot(normalize(normal), normalize(lightPos - vVertex)), 0.0);
+	mSpec = pow(max(dot(normalize(eyePos - vVertex) , reflect(normalize(vVertex - lightPos), normalize(normal))), 0.0),mSpecPow);
+
+	
+	if(useCubeMap){
+		vec3 ray = normalize(reflect(normalize(vVertex - eyePos), normal));
+		float scale = 10000.0;
+		hit topH = isHitPlaneQuad(topP, scale, vVertex, ray);
+		hit bottomH = isHitPlaneQuad(bottomP, scale, vVertex, ray);
+		hit rightH = isHitPlaneQuad(rightP, scale, vVertex, ray);
+		hit leftH = isHitPlaneQuad(leftP, scale, vVertex, ray);
+		hit frontH = isHitPlaneQuad(frontP, scale, vVertex, ray);
+		hit backH = isHitPlaneQuad(backP, scale, vVertex, ray);
+		
+		if(topH.isHit){
+			vec3 pos = normalize2TC(topH.hitPosition, scale);
+			vec2 uv = vec2(pos.x, pos.z);
+			mColor = vec3(texture2D(topT, uv));
+		}else if(bottomH.isHit){
+			vec3 pos = normalize2TC(bottomH.hitPosition, scale);
+			vec2 uv = vec2(pos.x, (1.0-pos.z));
+			mColor = vec3(texture2D(bottomT, uv));
+		}else if(rightH.isHit){
+			vec3 pos = normalize2TC(rightH.hitPosition, scale);
+			vec2 uv = vec2(pos.z, pos.y);
+			mColor = vec3(texture2D(rightT, uv));
+		}else if(leftH.isHit){
+			vec3 pos = normalize2TC(leftH.hitPosition, scale);
+			vec2 uv = vec2((1.0-pos.z), pos.y);
+			mColor = vec3(texture2D(leftT, uv));
+		}else if(frontH.isHit){
+			vec3 pos = normalize2TC(frontH.hitPosition, scale);
+			vec2 uv = vec2((1.0-pos.x), pos.y);
+			mColor = vec3(texture2D(frontT, uv));
+		}else if(backH.isHit){
+			vec3 pos = normalize2TC(backH.hitPosition, scale);
+			vec2 uv = vec2(pos.x, pos.y);
+			mColor = vec3(texture2D(backT, uv));
+		}else{
+			mColor = vec3(0.0, 0.0, 0.0);
+		}
+		
+		gl_FragColor = vec4(mColor, 1.0);
+	}else{
+		gl_FragColor = vec4(
+			mDiff * color + 
+			mSpec * vec3(1.0) +
+			0.0 * vec3(1.0), 
+			1.0
+		);
+	}
+}
